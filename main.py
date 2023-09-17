@@ -1,41 +1,57 @@
 from PIL import Image, ImageDraw, ImageFont
 
-game = 'rdr2'
+def create_comparison_image(game, crop_box, image_names, image_labels, image_number='1', image_suffix=''):
+    cropped_images = []
 
-# crop_box = (1710, 490, 2050, 870) # dobre
-crop_box = (1050, 580, 1470, 890)
-# image_filenames = ['base1','dlss-jakosc1', 'dlss-balans1', 'dlss-wydajnosc1', 'fsr-jakosc1', 'fsr-balans1', 'fsr-wydajnosc1']
-image_filenames = ['base','dlss-jakosc', 'dlss-balans', 'dlss-wydajnosc', 'fsr-jakosc', 'fsr-balans', 'fsr-wydajnosc']
-image_labels = ['Bazowy', 'DLSS jakosc', 'DLSS balans', 'DLSS wydajnosc', 'FSR jakosc', 'FSR balans', 'FSR wydajnosc']
+    for filename in image_names:
+        image = Image.open(f'images/{game}/{filename+image_number}.png')
+        cropped_image = image.crop(crop_box)
+        cropped_images.append(cropped_image)
 
-cropped_images = []
+    text_height = 40
+    total_width = cropped_image.width * 4
+    total_height = (cropped_image.height + text_height) * 2
+    stitched_image = Image.new('RGB', (total_width, total_height), (255, 255, 255))
 
-for filename in image_filenames:
-    image = Image.open(f'images/{game}/{filename}.png')
-    cropped_image = image.crop(crop_box)
-    cropped_images.append(cropped_image)
+    font = ImageFont.truetype('DejaVuSansCondensed-Bold.ttf', 30)
+    draw = ImageDraw.Draw(stitched_image)
+
+    for idx, (img, label) in enumerate(zip(cropped_images, image_labels)):
+        row = idx // 4
+        col = idx % 4
+        x_offset = col * cropped_image.width
+        y_offset = row * (cropped_image.height + text_height)
+        if idx == 0:
+            y_offset += (cropped_image.height + text_height) // 2
+        if idx >= 4:
+            x_offset += cropped_image.width
+
+        # Wklejanie obrazu
+        stitched_image.paste(img, (x_offset, y_offset))
+
+        # Dodawanie tekstu
+        text_bbox = draw.textbbox((0, 0), label, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        text_x = x_offset + (cropped_image.width - text_width) // 2
+        text_y = y_offset + cropped_image.height
+        draw.text((text_x, text_y), label, font=font, fill=(0, 0, 0))
+
+    stitched_image.save(f'output_images/{game}_grid_scene_{image_number}_box_{image_suffix}.png')
+
+    stitched_image.show()
 
 
-text_height = 40
-stitched_image = Image.new('RGB', (sum([img.width for img in cropped_images]), cropped_images[0].height + text_height), (255,255,255))
+game = 'cyberpunk2077'
+suffix = 'test'
 
-font = ImageFont.truetype('US101.TTF', 40)
+crop_boxes = {'1': [(40, 800, 340, 1070), (1060, 300, 1280, 590), (1740, 1000, 2110, 1200), (2010, 500, 2410, 930)],
+              '2': [(1170, 80, 1880, 500), (2080, 500, 2480, 930), (850, 940, 1070, 1120)],
+              '3': [(600, 400, 1300, 1300)]}
+#crop_box = (left, top, right, bottom) # flara
+image_names = ['base', 'dlss-jakosc', 'dlss-balans', 'dlss-wydajnosc', 'fsr-jakosc', 'fsr-balans', 'fsr-wydajnosc']
+image_labels = ['BAZOWY', 'DLSS JAKOŚĆ', 'DLSS BALANS', 'DLSS WYDAJNOŚĆ', 'FSR JAKOŚĆ', 'FSR BALANS', 'FSR WYDAJNOŚĆ']
+# image_labels_english = ['Base', 'DLSS Quality', 'DLSS Balance', 'DLSS Performance', 'FSR Quality', 'FSR Balance', 'FSR Performance']
 
-draw = ImageDraw.Draw(stitched_image)
-
-offset = 0
-for idx, img in enumerate(cropped_images):
-    stitched_image.paste(img, (offset, 0))
-
-    text = image_labels[idx]
-    text_bbox = draw.textbbox((0, 0), text, font = font)
-    text_width = text_bbox[2] - text_bbox[0]
-    text_x = offset + (img.width - text_width) // 2
-    text_y = img.height
-    draw.text((text_x, text_y), text, font=font, fill=(0, 0, 0))
-
-    offset += img.width
-
-stitched_image.save(f'croppedImages/{game}_1_chata.png')
-
-stitched_image.show()
+for key, crop_box_list in crop_boxes.items():
+    for i, crop_box in enumerate(crop_box_list):
+        create_comparison_image(game, crop_box, image_names, image_labels, key, f'{i+1}')
